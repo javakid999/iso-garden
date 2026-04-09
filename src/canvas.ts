@@ -369,7 +369,8 @@ export class GardenCanvas extends Canvas {
     view_right: [number, number, number]
     view_up: [number, number, number]
     camera_pos: [number, number, number]
-    camera_animation: Animation
+    camera_animation: Animation<number>
+    camera_bound_animation: Animation<number>
     looking_at: [number, number, number]
     mouse_pos: [number, number]
     held_block_id: number;
@@ -378,16 +379,19 @@ export class GardenCanvas extends Canvas {
 
     constructor(element: HTMLCanvasElement, width: number, height: number, atlas: HTMLImageElement) {
         super(element, width, height);
+        this.gl.enable(this.gl.CULL_FACE)
         this.proj = mat4.create();
         this.view = mat4.create();
         this.time = 0;
         this.mouse_pos = [0,0];
-        this.camera_animation = new Animation(Math.PI/4, Math.PI/4, 0.5);
+        this.camera_animation = new Animation(Math.PI/4, Math.PI/4, 0);
+        this.camera_bound_animation = new Animation(1, 2, 3000);
+        this.camera_bound_animation.play();
         this.camera_animation.complete = true;
         this.held_block_id = 32*5+3;
 
-        this.world = new VoxelWorld([10,10,10], [-3, 3, -3, 3]);
-        this.world.world[5][0][5] = {id: 32*3+4, position: [5,0,5]};
+        this.world = new VoxelWorld([10,10,10], 1);
+        this.world.place_block({id: 32*3+4, position: [5,0,5]});
 
         this.compileProgram('block', block_vertex, block_fragment);
         this.createTexture(UniformType.Texture2D, 1, atlas, [this.gl.CLAMP_TO_EDGE, this.gl.CLAMP_TO_EDGE])
@@ -400,7 +404,7 @@ export class GardenCanvas extends Canvas {
         this.camera_pos = [Math.cos(angle)*10+5, 5, Math.sin(angle)*10+5];
         this.looking_at = [5.5, 0.5, 5.5];
         this.addUniform('camera_pos', 'block', UniformType.FloatVector, 3, new Float32Array(this.camera_pos))
-        mat4.orthoNO(this.proj, this.world.camera_bounds[0], this.world.camera_bounds[1], this.world.camera_bounds[2], this.world.camera_bounds[3], 0.1, 100);
+        mat4.orthoNO(this.proj, -this.world.camera_scale, this.world.camera_scale, -this.world.camera_scale*this.element.height/this.element.width, this.world.camera_scale*this.element.height/this.element.width, 0.1, 100);
         mat4.lookAt(this.view, this.camera_pos, this.looking_at, [0,1,0]);
         this.view_right = [this.view[0], this.view[4], this.view[8]];
         this.view_up = [this.view[1], this.view[5], this.view[9]];
@@ -412,16 +416,7 @@ export class GardenCanvas extends Canvas {
         const world_vertex = this.world.get_vertex_information();
         this.attributeData('vertexPosition', 'block', world_vertex[0]);
         this.attributeData('vertexColor', 'block', world_vertex[1]);
-
-        for (let i = 0; i < world_vertex[2].length; i++) {
-            this.addDrawCall('block', 36, i*36, -1, [], {}, () => {
-                if (this.world.selected_block !== null && world_vertex[2][i][0] == this.world.selected_block[0] && world_vertex[2][i][1] == this.world.selected_block[1] && world_vertex[2][i][2] == this.world.selected_block[2]) {
-                    this.uniformData('selected', 'block', 1)
-                } else {
-                    this.uniformData('selected', 'block', 0)
-                }
-            });
-        }
+        this.addDrawCall('block', this.getDrawLength('block'), 0, -1);
     }
 
     regenerate_view_matrix(camera_pos: [number, number, number], looking_at: [number, number, number]) {
@@ -435,29 +430,37 @@ export class GardenCanvas extends Canvas {
     }
 
     place_block() {
-        const o: [number, number, number] = [this.camera_pos[0]  + 3*(this.mouse_pos[0]*this.view_right[0] + this.mouse_pos[1]*this.view_up[0]),  this.camera_pos[1] + 3*(this.mouse_pos[0]*this.view_right[1] + this.mouse_pos[1]*this.view_up[1]),  this.camera_pos[2] + 3*(this.mouse_pos[0]*this.view_right[2] + this.mouse_pos[1]*this.view_up[2])];
+        const o: [number, number, number] = [
+            this.camera_pos[0] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[0] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[0],
+            this.camera_pos[1] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[1] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[1],
+            this.camera_pos[2] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[2] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[2]
+        ];
         const d: [number, number, number] = [(this.looking_at[0]-this.camera_pos[0]), (this.looking_at[1]-this.camera_pos[1]), (this.looking_at[2]-this.camera_pos[2])];
         const raycast = this.world.raytrace(o, d)
         if (raycast !== null && this.world.world[raycast[1][0]][raycast[1][1]][raycast[1][2]] === null) {
-            this.world.world[raycast[1][0]][raycast[1][1]][raycast[1][2]] = {id: this.held_block_id, position: [raycast[1][0],raycast[1][1],raycast[1][2]]};
+            this.world.place_block({id: this.held_block_id, position: [raycast[1][0],raycast[1][1],raycast[1][2]]})
+            if (this.world.bounding_cube !== null) {
+                //const new_scale = Math.max(this.world.bounding_cube[1]-this.world.bounding_cube[0]+2, this.world.bounding_cube[3]-this.world.bounding_cube[2]+2, this.world.bounding_cube[5]-this.world.bounding_cube[4]+2);
+                const new_scale = Math.hypot(this.world.bounding_cube[1]-this.world.bounding_cube[0], (this.world.bounding_cube[3]-this.world.bounding_cube[2])*2, this.world.bounding_cube[5]-this.world.bounding_cube[4])+2;
+                if (new_scale > this.world.camera_scale) {
+                    this.camera_bound_animation.reset(this.camera_bound_animation.get(), new_scale, 500);
+                    this.camera_bound_animation.play();
+                }
+            }
             const world_vertex = this.world.get_vertex_information();
             this.attributeData('vertexPosition', 'block', world_vertex[0]);
             this.attributeData('vertexColor', 'block', world_vertex[1]);
             this.clearDrawCalls('block');
-            for (let i = 0; i < world_vertex[2].length; i++) {
-                this.addDrawCall('block', 36, i*36, -1, [], {}, () => {
-                    if (this.world.selected_block !== null && world_vertex[2][i][0] == this.world.selected_block[0] && world_vertex[2][i][1] == this.world.selected_block[1] && world_vertex[2][i][2] == this.world.selected_block[2]) {
-                        this.uniformData('selected', 'block', 1)
-                    } else {
-                        this.uniformData('selected', 'block', 0)
-                    }
-                });
-            }
+            this.addDrawCall('block', this.getDrawLength('block'), 0, -1);
         }
     }
 
     remove_block() {
-        const o: [number, number, number] = [this.camera_pos[0]  + 3*(this.mouse_pos[0]*this.view_right[0] + this.mouse_pos[1]*this.view_up[0]),  this.camera_pos[1] + 3*(this.mouse_pos[0]*this.view_right[1] + this.mouse_pos[1]*this.view_up[1]),  this.camera_pos[2] + 3*(this.mouse_pos[0]*this.view_right[2] + this.mouse_pos[1]*this.view_up[2])];
+        const o: [number, number, number] = [
+            this.camera_pos[0] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[0] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[0],
+            this.camera_pos[1] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[1] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[1],
+            this.camera_pos[2] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[2] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[2]
+        ];
         const d: [number, number, number] = [(this.looking_at[0]-this.camera_pos[0]), (this.looking_at[1]-this.camera_pos[1]), (this.looking_at[2]-this.camera_pos[2])];
         const raycast = this.world.raytrace(o, d)
         if (raycast !== null && raycast[0].id !== 32*3+4) {
@@ -466,15 +469,7 @@ export class GardenCanvas extends Canvas {
             this.attributeData('vertexPosition', 'block', world_vertex[0]);
             this.attributeData('vertexColor', 'block', world_vertex[1]);
             this.clearDrawCalls('block');
-            for (let i = 0; i < world_vertex[2].length; i++) {
-                this.addDrawCall('block', 36, i*36, -1, [], {}, () => {
-                    if (this.world.selected_block !== null && world_vertex[2][i][0] == this.world.selected_block[0] && world_vertex[2][i][1] == this.world.selected_block[1] && world_vertex[2][i][2] == this.world.selected_block[2]) {
-                        this.uniformData('selected', 'block', 1)
-                    } else {
-                        this.uniformData('selected', 'block', 0)
-                    }
-                });
-            }
+            this.addDrawCall('block', this.getDrawLength('block'), 0, -1);
         }
     }
 
@@ -495,7 +490,11 @@ export class GardenCanvas extends Canvas {
 
     update(mouse_pos: [number, number]) {
         this.mouse_pos = mouse_pos;
-        const o: [number, number, number] = [this.camera_pos[0]  + 3*(this.mouse_pos[0]*this.view_right[0] + this.mouse_pos[1]*this.view_up[0]),  this.camera_pos[1] + 3*(this.mouse_pos[0]*this.view_right[1] + this.mouse_pos[1]*this.view_up[1]),  this.camera_pos[2] + 3*(this.mouse_pos[0]*this.view_right[2] + this.mouse_pos[1]*this.view_up[2])];
+        const o: [number, number, number] = [
+            this.camera_pos[0] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[0] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[0],
+            this.camera_pos[1] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[1] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[1],
+            this.camera_pos[2] + this.world.camera_scale*this.mouse_pos[0]*this.view_right[2] + (this.world.camera_scale*this.element.height/this.element.width)*this.mouse_pos[1]*this.view_up[2]
+        ];
         const d: [number, number, number] = [(this.looking_at[0]-this.camera_pos[0]), (this.looking_at[1]-this.camera_pos[1]), (this.looking_at[2]-this.camera_pos[2])];
         const raycast = this.world.raytrace(o, d)
         if (raycast !== null) {
@@ -507,6 +506,12 @@ export class GardenCanvas extends Canvas {
         if (!this.camera_animation.paused && !this.camera_animation.complete) {
             const angle = this.camera_animation.get()
             this.regenerate_view_matrix([Math.cos(angle)*10+5, 5, Math.sin(angle)*10+5], [5.5, 0.5, 5.5])
+        }
+        if (!this.camera_bound_animation.paused && !this.camera_bound_animation.complete) {
+            const bounds = this.camera_bound_animation.get()
+            this.world.camera_scale = bounds
+            mat4.orthoNO(this.proj, -bounds, bounds, -(bounds * this.element.height / this.element.width), (bounds * this.element.height / this.element.width), 0.1, 100);
+            this.uniformData('proj', 'block', this.proj);
         }
 
         this.time += 1/60;

@@ -5,7 +5,7 @@ const canvasElement = document.getElementById('c') as HTMLCanvasElement;
 const atlas = new Image();
 let c: GardenCanvas;
 atlas.onload = () => {
-    c = new GardenCanvas(canvasElement, 600, 600, atlas);
+    c = new GardenCanvas(canvasElement, 1280, 720, atlas);
     update();
 }
 atlas.src = atlas_src;

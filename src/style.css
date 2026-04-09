@@ -2,96 +2,84 @@
     display: flex;
 }
 
-#block-picker {
-    padding: 0.5em;
-    background-color: #17171a;
-}
-
 @keyframes spin {
     0% {
-        transform: translate(0px, 30px) rotate3d(0, 1, 0, 0);
+        transform: translate(0px, 15px) rotate3d(0, 1, 0, 0);
     }
 
     100% {
-        transform: translate(0px, 30px) rotate3d(0, 1, 0, 360deg);
+        transform: translate(0px, 15px) rotate3d(0, 1, 0, 360deg);
     }
 }
 
-#stone {
+#canvas-wrapper {
+    position: relative;
+}
+
+#c {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+#selected-block {
+    position: absolute;
+    top: 0.5em;
+    left: 0.5em;
     --i: 3;
     --j: 5;
 }
 
-#wood {
-    --i: 8;
-    --j: 15;
-}
-
-#dirt {
-    --i: 8;
-    --j: 5;
-}
-
 .block-icon {
-    width: 10em;
-    height: 10em;
+    width: 5em;
+    height: 5em;
     perspective: 500px;
-    background-color: #232429;
     border-radius: 1em;
-}
-
-.block-icon:hover {
-    background-color: #36383f;
-    transition: 0.2s;
-}
-.selected {
-    background-color: #41434a;
 }
 
 .cube {
     margin: auto;
-    width: 100px;
-    height: 100px;
+    width: 50px;
+    height: 50px;
     transform-style: preserve-3d;
     transform-origin: center center 0px;
-    animation: spin 4s infinite linear;
+    animation: spin 2s infinite linear;
 
     div {
-        width: 100px;
-        height: 100px;
+        width: 50px;
+        height: 50px;
         background-image: url('./atlas.png');
         image-rendering: pixelated;
-        background-size: calc((100% + 100px) * 16);
-        background-position: calc(-100px*var(--i)) calc(-100px*var(--j));
+        background-size: calc((100% + 50px) * 16);
+        background-position: calc(-50px*var(--i)) calc(-50px*var(--j));
     }
 }
 
 .f1 {
     position: absolute;
-    transform: translateZ(50px);
+    transform: translateZ(25px);
 }
 
 .f2 {
     position: absolute;
-    transform: rotateY(180deg) translateZ(50px);
+    transform: rotateY(180deg) translateZ(25px);
 }
 
 .f3 {
     position: absolute;
-    transform: rotateY(-90deg) translateZ(50px);
+    transform: rotateY(-90deg) translateZ(25px);
 }
 
 .f4 {
     position: absolute;
-    transform: rotateY(90deg) translateZ(50px);
+    transform: rotateY(90deg) translateZ(25px);
 }
 
 .f5 {
     position: absolute;
-    transform: rotateX(90deg) translateZ(50px);
+    transform: rotateX(90deg) translateZ(25px);
 }
 
 .f6 {
     position: absolute;
-    transform: rotateX(-90deg) translateZ(50px);
+    transform: rotateX(-90deg) translateZ(25px);
 }
