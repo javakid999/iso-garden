@@ -3,33 +3,91 @@ export interface Block {
     position: [number, number, number]
 }
 
-export function get_block_verticies(b: Block, faces?: [number, number, number, number, number, number]) {
-    const texture_pos = [(b.id % 32) / 32, Math.floor(b.id / 32) / 32]
+function get_block_texture(b: Block): BlockTexture {
+    switch (b.id) {
+        case 0: // Stone
+            return {texture_ids: [32*6+19, 32*6+19, 32*6+19, 32*6+19, 32*6+19, 32*6+19], block_model: BlockModel.Cube}
+        case 1: // Grass
+            return {texture_ids: [32*10+1, 32*5+8, 32*10+1, 32*10+1, 32*10+4, 32*10+1], block_model: BlockModel.Cube}
+        case 2: // Dirt
+            return {texture_ids: [32*5+8, 32*5+8, 32*5+8, 32*5+8, 32*5+8, 32*5+8], block_model: BlockModel.Cube}
+        case 3: // Cobblestone
+            return {texture_ids: [32*5+3, 32*5+3, 32*5+3, 32*5+3, 32*5+3, 32*5+3], block_model: BlockModel.Cube}
+        case 4: // Oak planks
+            return {texture_ids: [32*15+8, 32*15+8, 32*15+8, 32*15+8, 32*15+8, 32*15+8], block_model: BlockModel.Cube}
+        case 5: // Oak log
+            return {texture_ids: [32*13+7, 32*13+8, 32*13+7, 32*13+7, 32*13+8, 32*13+7], block_model: BlockModel.Cube}
+        case 6: // Mossy cobblestone
+            return {texture_ids: [32*5+4, 32*5+4, 32*5+4, 32*5+4, 32*5+4, 32*5+4], block_model: BlockModel.Cube}
+        case 7: // Bricks
+            return {texture_ids: [32*3+5, 32*3+5, 32*3+5, 32*3+5, 32*3+5, 32*3+5], block_model: BlockModel.Cube}
+        case 8: // Netherrack
+            return {texture_ids: [32*14+12, 32*14+12, 32*14+12, 32*14+12, 32*14+12, 32*14+12], block_model: BlockModel.Cube}
+        case 9: // Sand
+            return {texture_ids: [32*4+18, 32*4+18, 32*4+18, 32*4+18, 32*4+18, 32*4+18], block_model: BlockModel.Cube}
+        case 10: // Gravel
+            return {texture_ids: [32*10+5, 32*10+5, 32*10+5, 32*10+5, 32*10+5, 32*10+5], block_model: BlockModel.Cube}
+        case 11: // Crafting table
+            return {texture_ids: [32*6+3, 32*15+8, 32*6+4, 32*6+3, 32*6+5, 32*6+4], block_model: BlockModel.Cube}
+        case 12: // Bookshelf
+            return {texture_ids: [32*0+5, 32*15+8, 32*0+5, 32*0+5, 32*15+8, 32*0+5], block_model: BlockModel.Cube}
+        case 13: // Coal Ore
+            return {texture_ids: [32*5+1, 32*5+1, 32*5+1, 32*5+1, 32*5+1, 32*5+1], block_model: BlockModel.Cube}
+        case 14: // Iron Ore
+            return {texture_ids: [32*12+0, 32*12+0, 32*12+0, 32*12+0, 32*12+0, 32*12+0], block_model: BlockModel.Cube}
+        case 15: // Gold Ore
+            return {texture_ids: [32*10+0, 32*10+0, 32*10+0, 32*10+0, 32*10+0, 32*10+0], block_model: BlockModel.Cube}
+        case 16: // Diamond Ore
+            return {texture_ids: [32*4+8, 32*4+8, 32*4+8, 32*4+8, 32*4+8, 32*4+8], block_model: BlockModel.Cube}
+        case 17: // Emerald Ore
+            return {texture_ids: [32*0+12, 32*0+12, 32*0+12, 32*0+12, 32*0+12,32*0+12], block_model: BlockModel.Cube}
+        case 50: // Bedrock
+            return {texture_ids: [32*3+4, 32*3+4, 32*3+4, 32*3+4, 32*3+4, 32*3+4], block_model: BlockModel.Cube}
+        default: // Unknown id - Cobblestone
+            return {texture_ids: [32*5+3, 32*5+3, 32*5+3, 32*5+3, 32*5+3, 32*5+3], block_model: BlockModel.Cube}
+    }
+}
+
+function get_block(b: Block, faces: [number, number, number, number, number, number]): [Float32Array, Float32Array] {
+    const block_texture = get_block_texture(b);
+    switch(block_texture.block_model) {
+        case BlockModel.Cube:
+            return get_cube_verticies(b, faces, block_texture.texture_ids);
+        default:
+            return [new Float32Array(), new Float32Array()]
+    }
+}
+
+function get_cube_verticies(b: Block, faces: [number, number, number, number, number, number], texture_ids: [number, number, number, number, number, number]): [number[], number[]] {
+    const texture_pos = [];
+    for (let id of texture_ids) {
+        texture_pos.push([(id % 32) / 32, Math.floor(id / 32) / 32])
+    }
     const vertex_uv = [
-        [
-            texture_pos[0],    texture_pos[1],      texture_pos[0]+1/32,texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,
-            texture_pos[0],    texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1]+1/32
+        [ // -x
+            texture_pos[0][0],    texture_pos[0][1]+1/32,      texture_pos[0][0]+1/32,texture_pos[0][1]+1/32,   texture_pos[0][0]+1/32,texture_pos[0][1],
+            texture_pos[0][0],    texture_pos[0][1]+1/32,      texture_pos[0][0]+1/32,texture_pos[0][1],        texture_pos[0][0],     texture_pos[0][1]
         ],
-        [
-            texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0]+1/32,texture_pos[1],      texture_pos[0],    texture_pos[1],
-            texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0]+1/32,texture_pos[1]+1/32,  texture_pos[0]+1/32,texture_pos[1]
+        [ // -y
+            texture_pos[1][0],    texture_pos[1][1]+1/32,  texture_pos[1][0]+1/32,texture_pos[1][1],      texture_pos[1][0],     texture_pos[1][1],
+            texture_pos[1][0],    texture_pos[1][1]+1/32,  texture_pos[1][0]+1/32,texture_pos[1][1]+1/32, texture_pos[1][0]+1/32,texture_pos[1][1]
         ],
-        [
-            texture_pos[0]+1/32,texture_pos[1],      texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1],
-            texture_pos[0]+1/32,texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1]+1/32
+        [ // -z
+            texture_pos[2][0]+1/32,texture_pos[2][1]+1/32,      texture_pos[2][0],     texture_pos[2][1],  texture_pos[2][0],    texture_pos[2][1]+1/32,
+            texture_pos[2][0]+1/32,texture_pos[2][1]+1/32,      texture_pos[2][0]+1/32,texture_pos[2][1],  texture_pos[2][0],    texture_pos[2][1]
         ],
-        [
-            texture_pos[0]+1/32,texture_pos[1],      texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1],
-            texture_pos[0]+1/32,texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1]+1/32
+        [ // +x
+            texture_pos[3][0]+1/32,texture_pos[3][1]+1/32,      texture_pos[3][0],     texture_pos[3][1],  texture_pos[3][0],    texture_pos[3][1]+1/32,
+            texture_pos[3][0]+1/32,texture_pos[3][1]+1/32,      texture_pos[3][0]+1/32,texture_pos[3][1],  texture_pos[3][0],    texture_pos[3][1]
         ],
-        [
-            texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1],      texture_pos[0]+1/32,texture_pos[1],
-            texture_pos[0],    texture_pos[1]+1/32,  texture_pos[0]+1/32,texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32
+        [ // +y
+            texture_pos[4][0],    texture_pos[4][1]+1/32,  texture_pos[4][0],     texture_pos[4][1],      texture_pos[4][0]+1/32,texture_pos[4][1],
+            texture_pos[4][0],    texture_pos[4][1]+1/32,  texture_pos[4][0]+1/32,texture_pos[4][1],      texture_pos[4][0]+1/32,texture_pos[4][1]+1/32
         ],
         
-        [
-            texture_pos[0],    texture_pos[1],      texture_pos[0]+1/32,texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,
-            texture_pos[0],    texture_pos[1],      texture_pos[0]+1/32,texture_pos[1]+1/32,  texture_pos[0],    texture_pos[1]+1/32
+        [ // +z
+            texture_pos[5][0],    texture_pos[5][1]+1/32,      texture_pos[5][0]+1/32,texture_pos[5][1]+1/32,   texture_pos[5][0]+1/32,texture_pos[5][1],
+            texture_pos[5][0],    texture_pos[5][1]+1/32,      texture_pos[5][0]+1/32,texture_pos[5][1],        texture_pos[5][0],     texture_pos[5][1]
         ],
     ];
 
@@ -200,25 +258,6 @@ export class VoxelWorld {
         //fuh u
     }
 
-    // get_vertex_information(): [Float32Array, Float32Array, [number, number, number][]] {
-    //     const vertex_position = [];
-    //     const vertex_uv = [];
-    //     const positions: [number, number, number][] = [];
-    //     for (let plane of this.world) {
-    //         for (let row of plane) {
-    //             for (let block of row) {
-    //                 if (block !== null) {
-    //                     const b = get_block_verticies(block);
-    //                     vertex_position.push(...b[0]);
-    //                     vertex_uv.push(...b[1]);
-    //                     positions.push([...block.position])
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     return [new Float32Array(vertex_position), new Float32Array(vertex_uv), positions];
-    // }
-
     get_vertex_information(): [Float32Array, Float32Array, [number, number, number][]] {
         const vertex_position = [];
         const vertex_uv = [];
@@ -252,7 +291,7 @@ export class VoxelWorld {
                             faces[5] = 1
                         }
 
-                        const b = get_block_verticies(block, faces);
+                        const b = get_block(block, faces);
                         vertex_position.push(...b[0]);
                         vertex_uv.push(...b[1]);
                         positions.push([...block.position])
@@ -262,4 +301,15 @@ export class VoxelWorld {
         }
         return [new Float32Array(vertex_position), new Float32Array(vertex_uv), positions];
     }
+}
+
+interface BlockTexture {
+    texture_ids: [number, number, number, number, number, number];
+    block_model: BlockModel;
+}
+
+enum BlockModel {
+    Cube,
+    Billboard,
+    TilledSoil
 }
